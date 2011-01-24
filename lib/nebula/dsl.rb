@@ -7,71 +7,102 @@ module Nebula
         builder.to_definition
       end
 
-      def cluster(name, &block)
-        @cluster = Cluster.new(name, &block)
+      def cloud(name, &block)
+        @cloud = CloudBlock.evaluate(name, &block)
       end
 
       def to_definition
-        @cluster
+        @cloud
       end
     end
 
-    class Cluster
-      attr_reader :name, :nodes, :provider, :chef
-
-      def initialize(name, &block)
-        @name  = name
-        @nodes = []
-        instance_eval(&block)
+    class Base
+      def self.evaluate(&block)
+        builder = new
+        builder.instance_eval(&block)
+        builder.to_definition
       end
 
-      def provider(name)
-        @provider = name
+      def to_definition
+        @target
+      end
+    end
+
+    class NamedBase < Base
+      def self.evaluate(name, &block)
+        builder = new(name)
+        builder.instance_eval(&block)
+        builder.to_definition
+      end
+    end
+
+    class CloudBlock < NamedBase
+      def initialize(name)
+        @target = Cloud.new(name)
+      end
+
+      def provider(name, &block)
+        @target.provider = ProviderBlock.evaluate(name, &block)
       end
 
       def chef_solo(&block)
-        @chef = ChefSolo.new(&block)
+        @target.chef = ChefSoloBlock.evaluate(&block)
       end
 
       def compute_node(name, &block)
-        @nodes << ComputeNode.new(name, &block)
+        @target.nodes << ComputeNodeBlock.evaluate(name, &block)
       end
     end
 
-    class ChefSolo
-      attr_reader :repo_path, :bootstrap_template
+    class ProviderBlock < NamedBase
+      def initialize(name)
+        @target = Provider.new(name)
+      end
 
-      def initialize(&block)
-        instance_eval(&block)
+      def method_missing(name, *args, &block)
+        key = [@target.name.downcase, '_', name].join.to_sym
+        @target.opts[ key ] = args.first
+      end
+    end
+
+    class ChefSoloBlock < Base
+      def initialize
+        @target = ChefSolo.new
       end
 
       def repo(path)
-        @repo_path = path
+        @target.repo_path = path
       end
 
       def bootstrap(template)
-        @bootstrap_template = template
+        @target.bootstrap_template = template
       end
     end
 
-    class ComputeNode
-      def initialize(name, &block)
-        @name = name
-        @run_list = []
-        @override_attributes = {}
-        instance_eval(&block)
+    class ComputeNodeBlock < NamedBase
+
+      def initialize(name)
+        @target = ComputeNode.new(name)
+      end
+
+      def flavor(val)
+        @target.flavor = val
+      end
+
+      def image(val)
+        @target.image = val
       end
 
       def role(name)
-        @run_list << "role[#{name}]"
+        @target.run_list << "role[#{name}]"
       end
 
       def recipe(name)
-        @run_list << "recipe[#{name}]"
+        @target.run_list << "recipe[#{name}]"
       end
 
       def override_attributes(atts)
-        @override_attributes.merge!(atts)
+        @target.override_attributes.merge!(atts)
       end
     end
 

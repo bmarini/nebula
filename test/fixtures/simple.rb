@@ -1,5 +1,9 @@
-cluster "myproject" do
-  provider "Rackspace"
+cloud "myproject" do
+  # Use environment variables to pull credentials out of this config file
+  provider "Rackspace" do
+    api_key '123'
+    username '456'
+  end
 
   chef_solo do
     repo "/etc/chef-repo"
@@ -7,18 +11,26 @@ cluster "myproject" do
   end
 
   compute_node("app1") do
+    flavor "small"
+    image "ubuntu-10.04"
     role "app"
   end
 
   compute_node("app2") do
+    flavor "small"
+    image "ubuntu-10.04"
     role "app"
   end
 
   compute_node("db1") do
+    flavor "small"
+    image "ubuntu-10.04"
     role "db-master"
   end
 
   compute_node("db2") do
+    flavor "small"
+    image "ubuntu-10.04"
     role "db-slave"
 
     override_attributes :mysql => {
@@ -27,14 +39,20 @@ cluster "myproject" do
   end
 
   compute_node("lb1") do
+    flavor "small"
+    image "ubuntu-10.04"
     role "load-balancer"
   end
 
   compute_node("lb2") do
+    flavor "small"
+    image "ubuntu-10.04"
     role "load-balancer"
   end
 
   compute_node("job") do
+    flavor "small"
+    image "ubuntu-10.04"
     role "app"
     recipe "resque"
   end
@@ -50,10 +68,3 @@ cluster "myproject" do
 
 end
 
-# foreach instance
-#   create instance
-#   bootstrap instance
-#   generate config file, attributes file
-#   rsync config file, attributes file
-#   rsync cookbooks and roles files if chef-solo
-#   run chef-solo/chef-client
